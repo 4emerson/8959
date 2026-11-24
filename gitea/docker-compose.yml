@@ -1,0 +1,22 @@
+version: "3"
+
+services:
+  gitea:
+    container_name: gitea
+    image: gitea/gitea:latest
+    restart: always
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__server__DOMAIN=192.168.88.10
+      - GITEA__server__ROOT_URL=http://192.168.88.10:3000/
+      - GITEA__server__SSH_PORT=222
+      # WebHooks para enderecos da rede privada do laboratorio (Jenkins)
+      - GITEA__webhook__ALLOWED_HOST_LIST=private
+    volumes:
+      - ./gitea:/data
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "3000:3000"
+      - "222:22"
