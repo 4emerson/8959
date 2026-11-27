@@ -32,5 +32,30 @@ pipeline {
           }
         }
       }
+      stage('SonarQube'){
+        agent {
+          docker {
+            image 'sonarsource/sonar-scanner-cli:latest'
+            args '--entrypoint= -e SONAR_USER_HOME=/tmp/.sonar'
+            reuseNode true
+          }
+        }
+        steps {
+          withSonarQubeEnv('SonarQube') {
+            withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+              sh '''
+                sonar-scanner \
+                  -Dsonar.host.url=${SONAR_HOST_URL} \
+                  -Dsonar.projectKey=course-catalog \
+                  -Dsonar.sources=project \
+                  -Dsonar.tests=tests \
+                  -Dsonar.python.version=3.12 \
+                  -Dsonar.python.coverage.reportPaths=reports/coverage.xml \
+                  -Dsonar.python.xunit.reportPath=reports/junit.xml
+              '''
+            }
+          }
+        }        
+      }
     }
 }
