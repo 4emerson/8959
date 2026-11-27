@@ -11,6 +11,8 @@ pipeline {
         IMAGE_NAME = 'course-catalog'
         IMAGE_TAG  = "0.${BUILD_NUMBER}"
         TRIVY_VERSION = '0.75.0'
+        REGISTRY = '192.168.88.20:8082'
+        IMAGE = "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
 
     }
 
@@ -61,7 +63,7 @@ pipeline {
       }
       stage('Build'){
         steps{
-          sh 'docker build --build-arg APP_VERSION=${IMAGE_TAG} -t ${IMAGE_NAME} .'
+          sh 'docker build --build-arg APP_VERSION=${IMAGE_TAG} -t ${IMAGE} .'
         }
       }
 
@@ -73,9 +75,34 @@ pipeline {
               -v trivy-cache:/root/.cache/trivy \
               aquasec/trivy:${TRIVY_VERSION} image \
               --severity CRITICAL --ignore-unfixed \
-              --timeout 30m ${IMAGE_NAME}
+              --timeout 30m ${IMAGE}
           '''
         }
       }
+      stage('Push no Nexus'){
+        steps {
+          withCredentials([usernamePassword(credentialsId: 'nexus-docker', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASSWORD' )]) {
+            sh '''
+              echo "$NEXUS_PASSWORD" | docker login ${REGISTRY} -u "$NEXUS_USER" --password-stdin
+              docker push ${IMAGE}
+            '''
+        }
+      }
     }
+  }
+
+  post {
+    success {
+      echo "Imagem ${IMAGE} publicada"
+    }
+    failure {
+      echo 'Pipeline com falha'
+    }
+    cleanup{
+      sh '''
+        docker logout ${REGISTRY} || true
+        docker image rm -f ${IMAGE_NAME}:test-${IMAGE_TAG} ${IMAGE} || true
+      '''
+    }
+  }
 }
