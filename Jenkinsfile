@@ -10,6 +10,8 @@ pipeline {
     environment {
         IMAGE_NAME = 'course-catalog'
         IMAGE_TAG  = "0.${BUILD_NUMBER}"
+        TRIVY_VERSION = '0.75.0'
+
     }
 
     stages{
@@ -56,6 +58,24 @@ pipeline {
             }
           }
         }        
+      }
+      stage('Build'){
+        steps{
+          sh 'docker build --build-arg APP_VERSION=${IMAGE_TAG} -t ${IMAGE_NAME} .'
+        }
+      }
+
+      stage('Trivy') {
+        steps {
+          sh '''
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v trivy-cache:/root/.cache/trivy \
+              aquasec/trivy:${TRIVY_VERSION} image \
+              --severity CRITICAL --ignore-unfixed \
+              --timeout 30m ${IMAGE_NAME}
+          '''
+        }
       }
     }
 }
